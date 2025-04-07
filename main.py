@@ -16,6 +16,11 @@ rocket_dict  = {0: Rocket_nofire, 1: Rocket_fire1, 2: Rocket_fire2}
 
 ash = pygame.image.load('graphics/ashLayer.png')
 
+
+#Could combine some of these into one class, for example moving objects up and down. For now will leave. 
+
+
+
 class Rocket(pygame.sprite.Sprite):
     def __init__(self, relx,rely ,screen):
         self.relx = relx
