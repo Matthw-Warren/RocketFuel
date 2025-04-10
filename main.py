@@ -1,6 +1,7 @@
 import pygame
 from sys import exit
 import sys
+from numpy import random
 
 
 #Set some parameters: 
@@ -41,7 +42,7 @@ class Rocket(pygame.sprite.Sprite):
     def blit(self):
         #Mode is 0, 1, or 2 the different 'fires'
         #direction is one of left, right or centre.
-        convert = {'left' : -5, 'right' : 5, 'centre' : 0}
+        convert = {'left' : +10, 'right' : -10, 'centre' : 0}
         toscreen = pygame.transform.rotate(rocket_dict[self.mode], convert[self.tilt])
         self.screen.blit(toscreen, (self.relx, self.rely))
     
@@ -148,7 +149,61 @@ star3 = pygame.image.load('graphics/star3.png')
 star_dict = {1: star1, 2: star2, 3: star3}
 #Not yet implemente stars so will for now leave this 
 
+# We'd like to get background stars generated randomly - their lifetime will be while they're on the screen. 
+# 
 
+
+
+
+class back_star:
+    def __init__(self, screen):
+        self.distance = random.randint(1,5)
+        self.relx = random.randint(400)
+        self.rely =0
+        self.star_type = random.randint(1,4)
+        self.screen = screen
+        self.star = star_dict[self.star_type]
+
+    def movedown(self):
+        self.rely += 1/self.distance
+
+    def blit(self):
+        self.screen.blit(self.star, (self.relx, self.rely))
+
+    def kill(self):
+        del self
+
+class back_star_list:
+    def __init__(self,screen):
+        self.count = 0
+        self.list = []
+        self.screen = screen
+
+    def add_star(self):
+        new = back_star(self.screen)
+        self.list.append(new)
+        self.count +=1
+
+    def update_stars(self):
+        newlist = []
+        for k in self.list:
+            k.movedown()
+            if k.rely<400:
+                newlist.append(k)
+            else:
+                k.kill()
+        self.list = newlist
+
+    def blit_stars(self):
+        for k in self.list:
+            k.blit()
+
+class asteroid:
+    def __init__(self, screen):
+        pass
+
+
+#Next plan is to introduce a scoreboard (for getting stars), introduce asteroids (which can kill you), and lives. 
 
 
 class Game:
@@ -165,7 +220,10 @@ class Game:
         self.cloud = Cloud(0, 0, self.screen)
         self.background = Background(self.screen, 0)
         self.liftofftimer =0
-    
+        self.backstars = back_star_list(self.screen)
+        self.maincount = 0
+
+
     def event_handling(self):
         for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -175,7 +233,8 @@ class Game:
                         self.running = False
                     if self.game_state == "menu" and event.key == pygame.K_SPACE:
                             self.game_state = "liftoff"
-                    
+                elif self.game_state == "maingame":
+                    self.rocket.set_direciton('centre')                    
 
 
 
@@ -238,13 +297,24 @@ class Game:
 
     def maingame_draw(self):
         self.background.blit()
+        self.backstars.blit_stars()
         self.rocket.blit()
     
     def maingame_update(self):
+        self.maincount = (self.maincount+1) % 40
         if self.background.rely < 0:
             self.background.movedown(10)
         self.rocket.change_mode()
-        
+        #We'd like to generate stars everynow and then. So we can use the gamecount to do so. If the count is a multiple of, say 40, lets add a star.
+        if self.maincount == 0:
+            self.backstars.add_star()
+
+
+        self.backstars.update_stars()
+        if self.rocket.rely< 380:
+            self.rocket.moveup(-4)
+    
+
 
     def draw(self):
         if self.game_state == "menu":
@@ -274,6 +344,14 @@ class Game:
             # pygame.display.flip()
             pygame.display.update()
             self.clock.tick(30)
+            keys = pygame.key.get_pressed()  # Checking pressed keys
+            if keys[pygame.K_LEFT]:
+                self.rocket.set_direciton('left')
+                self.rocket.moveleft(8)
+            if keys[pygame.K_RIGHT]:
+                self.rocket.set_direciton('right')
+                self.rocket.moveright(8)
+
             
 
 if __name__ == "__main__":
