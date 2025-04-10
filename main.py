@@ -117,15 +117,18 @@ class Background:
         self.ash = pygame.image.load('graphics/ashLayer.png')
         self.rely = rely
         self.ashalpha =0 
+        self.mode = 'notmain'
+        self.ashon = True
 
-    def blit(self, mode = 'notmain'):
-        if mode == 'main':
+    def blit(self):
+        if self.mode == 'main':
             self.screen.blit(self.main_background, (0, self.rely))
         else:
             self.screen.blit(self.background, (0, -1400 + self.rely))
-        ashop = ash.copy()
-        ashop.fill((255, 255, 255 , self.ashalpha), None, pygame.BLEND_RGBA_MULT)
-        self.screen.blit(ashop, (25,self.rely))
+        if self.ashon:    
+            ashop = ash.copy()
+            ashop.fill((255, 255, 255 , self.ashalpha), None, pygame.BLEND_RGBA_MULT)
+            self.screen.blit(ashop, (25,self.rely))
 
     def ashupdate(self, rate=1):
         self.ashalpha += rate
@@ -229,13 +232,18 @@ class Game:
         self.cloud.movedown(10)
         if self.background.rely > 1400:
             self.game_state = "maingame"
+            self.background.mode = "main"
+            self.background.rely= -600
+            self.background.ashon = False
 
-    # def maingame_draw(self):
-    #     self.rocket.blit()
+    def maingame_draw(self):
+        self.background.blit()
+        self.rocket.blit()
     
-    # def maingame_update(self):
-    #     if self.rocket.rely <380:
-    #         self.rocket.moveup(-1)
+    def maingame_update(self):
+        if self.background.rely < 0:
+            self.background.movedown(10)
+        self.rocket.change_mode()
         
 
     def draw(self):
@@ -245,8 +253,8 @@ class Game:
             self.liftoff_draw()
         elif self.game_state == "flight":   
             self.flight_draw()
-        # elif self.game_state == "maingame":
-        #     self.maingame_draw()
+        elif self.game_state == "maingame":
+            self.maingame_draw()
 
     def update(self):
         if self.game_state == "menu":
@@ -255,8 +263,8 @@ class Game:
             self.liftoff_update()
         elif self.game_state == "flight":
             self.flight_update()   
-        # elif self.game_state == "maingame": 
-        #     self.maingame_update()
+        elif self.game_state == "maingame": 
+            self.maingame_update()
 
     def run(self):
         while self.running:
