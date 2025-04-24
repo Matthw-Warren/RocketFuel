@@ -150,9 +150,7 @@ star_dict = {1: star1, 2: star2, 3: star3}
 #Not yet implemente stars so will for now leave this 
 
 # We'd like to get background stars generated randomly - their lifetime will be while they're on the screen. 
-# 
-
-
+# IN retrospect - stars dont really do this! - they're too far in the background
 
 
 class back_star:
@@ -163,6 +161,7 @@ class back_star:
         self.star_type = random.randint(1,4)
         self.screen = screen
         self.star = star_dict[self.star_type]
+        #Should change the size based on the distance.
 
     def movedown(self):
         self.rely += 1/self.distance
@@ -198,12 +197,65 @@ class back_star_list:
         for k in self.list:
             k.blit()
 
+
+
+#Need to draw my asteroids.
+# asteroid1 = pygame.image.load('graphics/')
+# asteroid2 = pygame.image.load('graphics/')
+# asteroid3 = pygame.image.load('graphics/')
+# asteroid_dict = {1: asteroid1, 2: asteroid2, 3: asteroid3}
+
+
 class asteroid:
     def __init__(self, screen):
-        pass
+        self.speed = random.randint(1,10)
+        self.size = random.randint(1,3)
+        self.relx = random.randint(400)
+        self.rely =0
+        self.asteroid_type = random.randint(1,4)
+        self.screen = screen
+        self.asteroid = star_dict[self.asteroid_type]
 
+
+    def movedown(self):
+        self.rely += speed
+
+    def blit(self):
+        self.screen.blit(self.star, (self.relx, self.rely))
+
+    def kill(self):
+        del self
 
 #Next plan is to introduce a scoreboard (for getting stars), introduce asteroids (which can kill you), and lives. 
+
+class asteroid_list:
+    def __init__(self,screen):
+        self.count = 0
+        self.list = []
+        self.screen = screen
+
+    def add_asteroid(self):
+        new = asteroid(self.screen)
+        self.list.append(new)
+        self.count +=1
+
+    def update_asteroids(self):
+        newlist = []
+        for k in self.list:
+            k.movedown()
+            if k.rely<400:
+                newlist.append(k)
+            else:
+                k.kill()
+        self.list = newlist
+
+    def blit_asteroids(self):
+        for k in self.list:
+            k.blit()
+
+
+#Will package these types of objects into a bigger 'obj list' class - as this I've just copy pasted the back star code!
+
 
 
 class Game:
