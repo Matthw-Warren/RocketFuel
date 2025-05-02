@@ -187,7 +187,7 @@ class back_star_list:
         newlist = []
         for k in self.list:
             k.movedown()
-            if k.rely<400:
+            if k.rely<600:
                 newlist.append(k)
             else:
                 k.kill()
@@ -200,33 +200,39 @@ class back_star_list:
 
 
 #Need to draw my asteroids.
-# asteroid1 = pygame.image.load('graphics/')
-# asteroid2 = pygame.image.load('graphics/')
-# asteroid3 = pygame.image.load('graphics/')
-# asteroid_dict = {1: asteroid1, 2: asteroid2, 3: asteroid3}
+asteroid1 = pygame.image.load('graphics/asteroid1.png')
+asteroid2 = pygame.image.load('graphics/asteroid2.png')
+asteroid3 = pygame.image.load('graphics/asteroid3.png')
+asteroid_dict = {1: asteroid1, 2: asteroid2, 3: asteroid3}
 
 
 class asteroid:
     def __init__(self, screen):
-        self.speed = random.randint(1,10)
+        self.speed = random.randint(5,10)
         self.size = random.randint(1,3)
-        self.relx = random.randint(400)
+        self.relx = random.randint(10,390)
         self.rely =0
         self.asteroid_type = random.randint(1,4)
         self.screen = screen
-        self.asteroid = star_dict[self.asteroid_type]
+        self.asteroid = asteroid_dict[self.asteroid_type]
+        self.rotation = 0
 
 
     def movedown(self):
-        self.rely += speed
+        self.rely += self.speed
+
+    def rotate(self,angle):
+        self.rotation += angle
 
     def blit(self):
-        self.screen.blit(self.star, (self.relx, self.rely))
+        toblit = pygame.transform.scale(self.asteroid, (40 + 10*(self.size-1),40 + 10*(self.size-1)))
+        toblit = pygame.transform.rotate(toblit, self.rotation)
+        self.screen.blit(toblit, (self.relx, self.rely))
 
     def kill(self):
         del self
 
-#Next plan is to introduce a scoreboard (for getting stars), introduce asteroids (which can kill you), and lives. 
+#Next plan is to introduce a scoreboard (for getting some type of thing), introduce asteroids (which can kill you), and lives. 
 
 class asteroid_list:
     def __init__(self,screen):
@@ -243,7 +249,8 @@ class asteroid_list:
         newlist = []
         for k in self.list:
             k.movedown()
-            if k.rely<400:
+            k.rotate(10)
+            if k.rely<600:
                 newlist.append(k)
             else:
                 k.kill()
@@ -273,6 +280,7 @@ class Game:
         self.background = Background(self.screen, 0)
         self.liftofftimer =0
         self.backstars = back_star_list(self.screen)
+        self.asteroids = asteroid_list(self.screen)
         self.maincount = 0
 
 
@@ -299,7 +307,9 @@ class Game:
         text_font = pygame.font.SysFont('Courier',20)
         text_img = text_font.render('PRESS SPACE!', text_font, 'Black')
         self.screen.blit(text_img, (125,200))
-        
+
+
+
     def menu_update(self):
         self.bird.change()
         self.bird.moveright(2)
@@ -350,8 +360,12 @@ class Game:
     def maingame_draw(self):
         self.background.blit()
         self.backstars.blit_stars()
+        self.asteroids.blit_asteroids()
         self.rocket.blit()
-    
+
+        
+
+
     def maingame_update(self):
         self.maincount = (self.maincount+1) % 40
         if self.background.rely < 0:
@@ -360,9 +374,12 @@ class Game:
         #We'd like to generate stars everynow and then. So we can use the gamecount to do so. If the count is a multiple of, say 40, lets add a star.
         if self.maincount == 0:
             self.backstars.add_star()
-
+            self.asteroids.add_asteroid()
 
         self.backstars.update_stars()
+        self.asteroids.update_asteroids()
+
+
         if self.rocket.rely< 380:
             self.rocket.moveup(-4)
     
