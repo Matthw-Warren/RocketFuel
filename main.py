@@ -29,6 +29,7 @@ class Rocket(pygame.sprite.Sprite):
         self.screen = screen
         self.mode = 0
         self.tilt = 'centre'
+        self.object = rocket_dict[self.mode]
 
     def moveleft(self, speed):
         self.relx -= speed
@@ -153,49 +154,34 @@ star_dict = {1: star1, 2: star2, 3: star3}
 # IN retrospect - stars dont really do this! - they're too far in the background
 
 
-class back_star:
-    def __init__(self, screen):
-        self.distance = random.randint(1,5)
-        self.relx = random.randint(400)
-        self.rely =0
-        self.star_type = random.randint(1,4)
-        self.screen = screen
-        self.star = star_dict[self.star_type]
-        #Should change the size based on the distance.
 
-    def movedown(self):
-        self.rely += 1/self.distance
 
-    def blit(self):
-        self.screen.blit(self.star, (self.relx, self.rely))
 
-    def kill(self):
-        del self
+def hitbox_corners(obj):
+    xsize, ysize = obj.object.get_size()
+    x,y = obj.relx, obj.rely
+    return (x , x+xsize, y, y+ysize)
 
-class back_star_list:
-    def __init__(self,screen):
-        self.count = 0
-        self.list = []
-        self.screen = screen
 
-    def add_star(self):
-        new = back_star(self.screen)
-        self.list.append(new)
-        self.count +=1
 
-    def update_stars(self):
-        newlist = []
-        for k in self.list:
-            k.movedown()
-            if k.rely<600:
-                newlist.append(k)
-            else:
-                k.kill()
-        self.list = newlist
+#In fact!! This doesnt work, as one object can be contained in the OTHER!!!
+#To alleviate this, we just ensure that object 2 is the smaller object
+def detect_hit(object1, object2):
+    x1min, x1max, y1min, y1max = hitbox_corners(object1)
+    x2min, x2max, y2min, y2max = hitbox_corners(object2)
+    corners = [ [x2min, y2min], [x2min, y2max] ,[x2max,y2min] ,[x2max, y2max] ]
+    for corner in corners:    
+        if  x1min <= corner[0] and x1max >= corner[0] and y1min <= corner[1] and y1max >= corner[1]:
+            return True
+    return False
 
-    def blit_stars(self):
-        for k in self.list:
-            k.blit()
+def draw_hitbox(obj):
+    xmin, xmax, ymin, ymax = hitbox_corners(obj)
+    corners =  [ [xmin, ymin], [xmin, ymax]  ,[xmax, ymax] ,[xmax,ymin]]
+    pygame.draw.line(obj.screen, 'Red', corners[0],corners[1])
+    pygame.draw.line(obj.screen, 'Red', corners[1],corners[2])
+    pygame.draw.line(obj.screen, 'Red', corners[2],corners[3])
+    pygame.draw.line(obj.screen, 'Red', corners[3],corners[0])
 
 
 
@@ -206,67 +192,131 @@ asteroid3 = pygame.image.load('graphics/asteroid3.png')
 asteroid_dict = {1: asteroid1, 2: asteroid2, 3: asteroid3}
 
 
-class asteroid:
-    def __init__(self, screen):
+class back_object:
+    def __init__(self,screen):
         self.speed = random.randint(5,10)
-        self.size = random.randint(1,3)
         self.relx = random.randint(10,390)
         self.rely =0
-        self.asteroid_type = random.randint(1,4)
+        # self.object_type = random.randint(1,4)
+        # self.py_object = asteroid_dict[self.asteroid_type]
         self.screen = screen
-        self.asteroid = asteroid_dict[self.asteroid_type]
-        self.rotation = 0
-
+        self.object = None
 
     def movedown(self):
         self.rely += self.speed
 
-    def rotate(self,angle):
-        self.rotation += angle
-
     def blit(self):
-        toblit = pygame.transform.scale(self.asteroid, (40 + 10*(self.size-1),40 + 10*(self.size-1)))
-        toblit = pygame.transform.rotate(toblit, self.rotation)
-        self.screen.blit(toblit, (self.relx, self.rely))
+        self.screen.blit(self.object, (self.relx, self.rely))
 
+    def update(self):
+        self.movedown()
+    
     def kill(self):
         del self
 
-#Next plan is to introduce a scoreboard (for getting some type of thing), introduce asteroids (which can kill you), and lives. 
 
-class asteroid_list:
+class object_list:
     def __init__(self,screen):
         self.count = 0
         self.list = []
         self.screen = screen
 
-    def add_asteroid(self):
-        new = asteroid(self.screen)
+    def add_rand_object(self):
+        #OKAY
+        new = back_object(self.screen)
         self.list.append(new)
         self.count +=1
 
-    def update_asteroids(self):
+    def update_objects(self):
         newlist = []
         for k in self.list:
-            k.movedown()
-            k.rotate(10)
+            k.update()
             if k.rely<600:
                 newlist.append(k)
             else:
                 k.kill()
         self.list = newlist
 
-    def blit_asteroids(self):
+    def blit_objects(self):
         for k in self.list:
             k.blit()
+
+    def detect_rocket_hit(self,rocket):
+        for k in self.list:
+            if detect_hit( rocket,k):
+                self.list.remove(k)
+                k.kill()
+                return True
+            
+    def draw_hitboxes(self):
+        for k in self.list:
+            draw_hitbox(k)
+                
+
+
+
+class back_star(back_object):
+    def __init__(self,screen):
+        super().__init__(screen)
+        self.star_type = random.randint(1,4)
+        self.object = star_dict[self.star_type]
+        self.size = 1/random.randint(1,3)
+        self.speed = random.randint(1,3)
+            #Should change the size based on the distance.
+
+    def movedown(self):
+        self.rely += self.speed/10
+
+class back_star_list(object_list):
+    def add_star(self):
+        new = back_star(self.screen)
+        self.list.append(new)
+        self.count +=1
+
+class asteroid(back_object):
+    def __init__(self, screen):
+        super().__init__(screen)
+        self.asteroid_type = random.randint(1,4)
+        self.object = asteroid_dict[self.asteroid_type]
+        self.size= random.randint(1,3)
+        self.rotation = 0
+        self.relx = random.randint(20,380)
+        self.object = pygame.transform.scale(self.object, (40 + 10*(self.size-1),40 + 10*(self.size-1)))
+        
+
+    def rotate(self,angle):
+        self.rotation += angle
+
+    def blit(self):
+        toblit = pygame.transform.rotate(self.object, self.rotation)
+        self.screen.blit(toblit, (self.relx, self.rely))
+
+    def update(self):
+        self.movedown()
+        self.rotate(20)
+    
+
+#Next plan is to introduce a scoreboard (for getting some type of thing), introduce asteroids (which can kill you), and lives. 
+
+class asteroid_list(object_list):
+    def add_asteroid(self):
+        new = asteroid(self.screen)
+        self.list.append(new)
+        self.count +=1
+    
+    
 
 
 #Will package these types of objects into a bigger 'obj list' class - as this I've just copy pasted the back star code!
 
 
 
+#Hitbox detection will be simply implemented (eg. not really the edges of the object, and if the object is tilting - then we have some type shii going on!)
+
+
+
 class Game:
-    def __init__(self):
+    def __init__(self, hitboxes= False, skipIntro = False):
         pygame.init()
         self.screen = pygame.display.set_mode((screen_width, screen_height))
         pygame.display.set_caption("Rocket Fuel")
@@ -282,13 +332,17 @@ class Game:
         self.backstars = back_star_list(self.screen)
         self.asteroids = asteroid_list(self.screen)
         self.maincount = 0
-
+        self.score = 0
+        self.hitboxes = hitboxes
 
     def event_handling(self):
         for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
                 elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_h:
+                        self.hitboxes = not self.hitboxes
+
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                     if self.game_state == "menu" and event.key == pygame.K_SPACE:
@@ -359,30 +413,35 @@ class Game:
 
     def maingame_draw(self):
         self.background.blit()
-        self.backstars.blit_stars()
-        self.asteroids.blit_asteroids()
+        self.backstars.blit_objects()
+        self.asteroids.blit_objects()
         self.rocket.blit()
+        text_font = pygame.font.SysFont('Courier',36)
+        text_img = text_font.render('Score: ' + str(self.score), text_font, 'White')
+        self.screen.blit(text_img, (0,0))
 
-        
-
+        if self.hitboxes:
+            draw_hitbox(self.rocket)
+            self.asteroids.draw_hitboxes()
 
     def maingame_update(self):
-        self.maincount = (self.maincount+1) % 40
+        self.maincount = (self.maincount+1)
         if self.background.rely < 0:
             self.background.movedown(10)
         self.rocket.change_mode()
         #We'd like to generate stars everynow and then. So we can use the gamecount to do so. If the count is a multiple of, say 40, lets add a star.
-        if self.maincount == 0:
-            self.backstars.add_star()
+        if self.maincount % 40== 0:
             self.asteroids.add_asteroid()
+        if self.maincount % 200 == 0:
+            self.backstars.add_star()
 
-        self.backstars.update_stars()
-        self.asteroids.update_asteroids()
+
+        self.backstars.update_objects()
+        self.asteroids.update_objects()
 
 
         if self.rocket.rely< 380:
             self.rocket.moveup(-4)
-    
 
 
     def draw(self):
@@ -407,12 +466,17 @@ class Game:
 
     def run(self):
         while self.running:
+            if self.asteroids.detect_rocket_hit(self.rocket):
+                print('BANG {}'.format(self.maincount))
+
             self.event_handling()
             self.update()
             self.draw()
+
+            
             # pygame.display.flip()
             pygame.display.update()
-            self.clock.tick(30)
+            self.clock.tick(60)
             keys = pygame.key.get_pressed()  # Checking pressed keys
             if keys[pygame.K_LEFT]:
                 self.rocket.set_direciton('left')
@@ -424,6 +488,6 @@ class Game:
             
 
 if __name__ == "__main__":
-    game = Game()
+    game = Game(True)
     game.run()
 
