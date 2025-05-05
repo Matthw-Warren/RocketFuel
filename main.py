@@ -35,10 +35,10 @@ class Rocket(pygame.sprite.Sprite):
         self.object = rocket_dict[self.mode]
 
     def moveleft(self, speed):
-        self.relx -= speed
+        self.relx = (self.relx - speed) % 400
 
     def moveright(self, speed):
-        self.relx += speed
+        self.relx = (self.relx +  speed) % 400
 
     def moveup(self, speed):
         self.rely -= speed
@@ -49,6 +49,10 @@ class Rocket(pygame.sprite.Sprite):
         convert = {'left' : +10, 'right' : -10, 'centre' : 0}
         toscreen = pygame.transform.rotate(rocket_dict[self.mode], convert[self.tilt])
         self.screen.blit(toscreen, (self.relx, self.rely))
+        if self.relx > 320:
+            self.screen.blit(toscreen, (self.relx-400, self.rely))
+
+
     
     def set_direciton(self, direciton):
         self.tilt = direciton
@@ -170,14 +174,21 @@ star_dict = {1: star1, 2: star2, 3: star3}
 def hitbox_corners(obj):
     xsize, ysize = obj.object.get_size()
     x,y = obj.relx, obj.rely
-    return (x , x+xsize, y, y+ysize)
+    return (x % 400 , x+xsize %400, y, y+ysize)
 
 
+def truncated_hitbox_corners(obj):
+    xsize, ysize = obj.object.get_size()
+    x,y = obj.relx, obj.rely
+    return (x+xsize/6 %400 , x+xsize*5/6 %400, y, y+ysize/2)
 
 #In fact!! This doesnt work, as one object can be contained in the OTHER!!!
 #To alleviate this, we just ensure that object 2 is the smaller object
+#I've actually changed this - I only really want hits to count when they're 'direct' - so have chopped off the end of the rocket's hitbox
+
+#Very janky , the only call is to ( rocket,asteroid)
 def detect_hit(object1, object2):
-    x1min, x1max, y1min, y1max = hitbox_corners(object1)
+    x1min, x1max, y1min, y1max = truncated_hitbox_corners(object1)
     x2min, x2max, y2min, y2max = hitbox_corners(object2)
     corners = [ [x2min, y2min], [x2min, y2max] ,[x2max,y2min] ,[x2max, y2max] ]
     for corner in corners:    
@@ -185,8 +196,18 @@ def detect_hit(object1, object2):
             return True
     return False
 
+
+#Hitboxes a bit werid when passign over screen
 def draw_hitbox(obj):
     xmin, xmax, ymin, ymax = hitbox_corners(obj)
+    corners =  [ [xmin, ymin], [xmin, ymax]  ,[xmax, ymax] ,[xmax,ymin]]
+    pygame.draw.line(obj.screen, 'Red', corners[0],corners[1])
+    pygame.draw.line(obj.screen, 'Red', corners[1],corners[2])
+    pygame.draw.line(obj.screen, 'Red', corners[2],corners[3])
+    pygame.draw.line(obj.screen, 'Red', corners[3],corners[0])
+
+def draw_truncated_hitbox(obj):
+    xmin, xmax, ymin, ymax = truncated_hitbox_corners(obj)
     corners =  [ [xmin, ymin], [xmin, ymax]  ,[xmax, ymax] ,[xmax,ymin]]
     pygame.draw.line(obj.screen, 'Red', corners[0],corners[1])
     pygame.draw.line(obj.screen, 'Red', corners[1],corners[2])
@@ -444,7 +465,7 @@ class Game:
         self.screen.blit(text_img, (0,0))
 
         if self.hitboxes:
-            draw_hitbox(self.rocket)
+            draw_truncated_hitbox(self.rocket)
             self.asteroids.draw_hitboxes()
 
     def maingame_update(self):
@@ -453,8 +474,12 @@ class Game:
         if self.background.rely < 0:
             self.background.movedown(10)
         self.rocket.change_mode()
+        if self.score < 2000:
+            asteroid_rate = 2- np.exp(-1/1000 * self.score )
+            asteroid_peroid = np.floor(40 / asteroid_rate)
+        else: asteroid_peroid=20
         #We'd like to generate stars everynow and then. So we can use the gamecount to do so. If the count is a multiple of, say 40, lets add a star.
-        if self.maincount % 40== 0:
+        if (self.maincount % asteroid_peroid) ==0:
             self.asteroids.add_asteroid()
         if self.maincount % 200 == 0:
             self.backstars.add_star()
@@ -479,7 +504,7 @@ class Game:
             text_font2  = pygame.font.SysFont('Courier',24)
             text_img1 = text_font1.render('Score:' + str(self.score) , text_font1, 'White')
             text_img2 = text_font2.render('Press R to restart' , text_font2, 'White')
-            self.screen.blit(text_img1, (125,250))
+            self.screen.blit(text_img1, (115,250))
             self.screen.blit(text_img2, (75,280))
 
 
@@ -526,14 +551,14 @@ class Game:
             
             # pygame.display.flip()
             pygame.display.update()
-            self.clock.tick(60)
+            self.clock.tick(30)
             keys = pygame.key.get_pressed()  # Checking pressed keys
             if keys[pygame.K_LEFT] and self.game_state== 'maingame':
                 self.rocket.set_direciton('left')
-                self.rocket.moveleft(8)
+                self.rocket.moveleft(12)
             if keys[pygame.K_RIGHT] and self.game_state== 'maingame':
                 self.rocket.set_direciton('right')
-                self.rocket.moveright(8)
+                self.rocket.moveright(12)
 
             
 
