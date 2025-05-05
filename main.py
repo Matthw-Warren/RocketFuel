@@ -2,7 +2,7 @@ import pygame
 from sys import exit
 import sys
 from numpy import random
-
+import numpy as np
 
 #Set some parameters: 
 screen_height = 600
@@ -21,6 +21,9 @@ ash = pygame.image.load('graphics/ashLayer.png')
 #Could combine some of these into one class, for example moving objects up and down. For now will leave. 
 
 
+flames1= pygame.image.load('graphics/flames1.png')
+flames2 = pygame.image.load('graphics/flames2.png')
+flamedict = {1: flames1, 2: flames2}
 
 class Rocket(pygame.sprite.Sprite):
     def __init__(self, relx,rely ,screen):
@@ -62,6 +65,13 @@ class Rocket(pygame.sprite.Sprite):
             self.tilt = 'left'
         elif self.tilt == 'left':
             self.tilt = 'right'
+
+    def explode(self, count):
+        self.screen.blit(self.object,(self.relx, self.rely))
+        toblit = flamedict[self.mode]
+        scale = count**2
+        toblit = pygame.transform.scale(toblit,(scale,scale) )
+        self.screen.blit(toblit, (self.relx - scale/2, self.rely-scale/2 ))
 
 #Then birds
 Bird1 = pygame.image.load('graphics/Bird1.png')
@@ -334,6 +344,7 @@ class Game:
         self.maincount = 0
         self.score = 0
         self.hitboxes = hitboxes
+        self.lives =0
 
     def event_handling(self):
         for event in pygame.event.get():
@@ -342,7 +353,8 @@ class Game:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_h:
                         self.hitboxes = not self.hitboxes
-
+                    if event.key == pygame.K_r:
+                        self.reset()
                     if event.key == pygame.K_ESCAPE:
                         self.running = False
                     if self.game_state == "menu" and event.key == pygame.K_SPACE:
@@ -350,6 +362,19 @@ class Game:
                 elif self.game_state == "maingame":
                     self.rocket.set_direciton('centre')                    
 
+    def reset(self):
+        self.game_state = "menu"
+        #We'll also initialise our objects - so the clouds, the rocket, the birds, the stars etc.
+        self.rocket  = Rocket(165, 380, self.screen)
+        self.bird = Bird(0, 100, self.screen)
+        self.cloud = Cloud(0, 0, self.screen)
+        self.background = Background(self.screen, 0)
+        self.liftofftimer =0
+        self.backstars = back_star_list(self.screen)
+        self.asteroids = asteroid_list(self.screen)
+        self.maincount = 0
+        self.score = 0
+        self.blowupcount =0 
 
 
     def menu_draw(self):
@@ -361,8 +386,6 @@ class Game:
         text_font = pygame.font.SysFont('Courier',20)
         text_img = text_font.render('PRESS SPACE!', text_font, 'Black')
         self.screen.blit(text_img, (125,200))
-
-
 
     def menu_update(self):
         self.bird.change()
@@ -425,6 +448,7 @@ class Game:
             self.asteroids.draw_hitboxes()
 
     def maingame_update(self):
+        self.score += 1
         self.maincount = (self.maincount+1)
         if self.background.rely < 0:
             self.background.movedown(10)
@@ -443,6 +467,27 @@ class Game:
         if self.rocket.rely< 380:
             self.rocket.moveup(-4)
 
+    def blowup_draw(self):
+        if self.blowupcount< 60:
+            self.background.blit()
+            self.backstars.blit_objects()
+            self.asteroids.blit_objects()
+            self.rocket.explode(self.blowupcount)
+        else:
+            self.rocket.explode(self.blowupcount)
+            text_font1  = pygame.font.SysFont('Courier',36)
+            text_font2  = pygame.font.SysFont('Courier',24)
+            text_img1 = text_font1.render('Score:' + str(self.score) , text_font1, 'White')
+            text_img2 = text_font2.render('Press R to restart' , text_font2, 'White')
+            self.screen.blit(text_img1, (125,250))
+            self.screen.blit(text_img2, (75,280))
+
+
+    def blowup_update(self):
+        if self.blowupcount< 60:
+            self.blowupcount +=1
+            self.rocket.change_mode()
+
 
     def draw(self):
         if self.game_state == "menu":
@@ -453,6 +498,8 @@ class Game:
             self.flight_draw()
         elif self.game_state == "maingame":
             self.maingame_draw()
+        elif self.game_state == "blowup":
+            self.blowup_draw()
 
     def update(self):
         if self.game_state == "menu":
@@ -463,11 +510,14 @@ class Game:
             self.flight_update()   
         elif self.game_state == "maingame": 
             self.maingame_update()
+        elif self.game_state == "blowup":
+            self.blowup_update()
 
     def run(self):
         while self.running:
             if self.asteroids.detect_rocket_hit(self.rocket):
-                print('BANG {}'.format(self.maincount))
+                self.game_state = 'blowup'
+                self.blowupcount=0
 
             self.event_handling()
             self.update()
@@ -478,10 +528,10 @@ class Game:
             pygame.display.update()
             self.clock.tick(60)
             keys = pygame.key.get_pressed()  # Checking pressed keys
-            if keys[pygame.K_LEFT]:
+            if keys[pygame.K_LEFT] and self.game_state== 'maingame':
                 self.rocket.set_direciton('left')
                 self.rocket.moveleft(8)
-            if keys[pygame.K_RIGHT]:
+            if keys[pygame.K_RIGHT] and self.game_state== 'maingame':
                 self.rocket.set_direciton('right')
                 self.rocket.moveright(8)
 
