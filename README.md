@@ -1,5 +1,5 @@
 # RocketFuel
-Rocket game - all art is self drawn. 
+Rocket game
 -------
 Is rather basic at the moment.
 
